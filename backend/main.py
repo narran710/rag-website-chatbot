@@ -3,6 +3,10 @@ from pydantic import BaseModel
 from urllib.parse import urlparse
 from backend.scraper import crawl_website
 from backend.rag import clean_documents
+from backend.rag import (
+    clean_documents,
+    create_chunks
+)
 
 app = FastAPI(
     title="RAG Website Chatbot",
@@ -53,10 +57,14 @@ def ingest(data: URLRequest):
 
     cleaned_count = clean_documents()
 
+    chunk_count = create_chunks()
+
     return {
         "status": "success",
         "pages_scraped":
             crawl_result["pages_scraped"],
         "documents_cleaned":
-            cleaned_count
+            cleaned_count,
+        "chunks_created":
+            chunk_count
     }

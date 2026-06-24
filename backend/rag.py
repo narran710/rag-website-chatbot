@@ -1,6 +1,6 @@
 from pathlib import Path
 import re
-
+import json
 
 NOISE_PATTERNS = [
     "Skip to content",
@@ -99,3 +99,87 @@ def clean_documents():
         cleaned_count += 1
 
     return cleaned_count
+
+def chunk_text(
+    text,
+    chunk_size=500,
+    overlap=100
+):
+
+    chunks = []
+
+    start = 0
+
+    while start < len(text):
+
+        end = start + chunk_size
+
+        chunk = text[start:end]
+
+        chunks.append(chunk)
+
+        start += (
+            chunk_size - overlap
+        )
+
+    return chunks
+
+def create_chunks():
+
+    input_dir = Path(
+        "data/cleaned_pages"
+    )
+
+    output_dir = Path(
+        "data/chunks"
+    )
+
+    output_dir.mkdir(
+        exist_ok=True
+    )
+
+    total_chunks = 0
+
+    for file_path in input_dir.glob("*.txt"):
+
+        with open(
+            file_path,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            text = f.read()
+
+        chunks = chunk_text(text)
+
+        for idx, chunk in enumerate(chunks):
+
+            chunk_data = {
+                "source_file":
+                    file_path.name,
+                "chunk_id":
+                    idx,
+                "text":
+                    chunk
+            }
+
+            chunk_file = (
+                output_dir /
+                f"{file_path.stem}_{idx}.json"
+            )
+
+            with open(
+                chunk_file,
+                "w",
+                encoding="utf-8"
+            ) as f:
+
+                json.dump(
+                    chunk_data,
+                    f,
+                    indent=2
+                )
+
+            total_chunks += 1
+
+    return total_chunks

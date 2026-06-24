@@ -16,3 +16,6 @@ data/faiss_index/*
 
 data/cleaned_pages/*.txt
 !data/cleaned_pages/.gitkeep
+
+data/chunks/*.json
+!data/chunks/.gitkeep
