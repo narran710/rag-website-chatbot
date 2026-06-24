@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from urllib.parse import urlparse
 from backend.scraper import crawl_website
+from backend.rag import clean_documents
 
 app = FastAPI(
     title="RAG Website Chatbot",
@@ -45,13 +46,17 @@ def ingest(data: URLRequest):
             detail="Invalid URL"
         )
 
-    result = crawl_website(
+    crawl_result = crawl_website(
         data.url,
-        max_pages=10,
+        max_pages=10
     )
+
+    cleaned_count = clean_documents()
 
     return {
         "status": "success",
-        "url": data.url,
-        "pages_scraped": result["pages_scraped"]
+        "pages_scraped":
+            crawl_result["pages_scraped"],
+        "documents_cleaned":
+            cleaned_count
     }

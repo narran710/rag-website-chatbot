@@ -13,3 +13,6 @@ data/scraped_pages/*.txt
 
 data/faiss_index/*
 !data/faiss_index/.gitkeep
+
+data/cleaned_pages/*.txt
+!data/cleaned_pages/.gitkeep
