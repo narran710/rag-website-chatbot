@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from urllib.parse import urlparse
+from backend.scraper import scrape_page
 
 app = FastAPI(
     title="RAG Website Chatbot",
@@ -44,8 +45,17 @@ def ingest(data: URLRequest):
             detail="Invalid URL"
         )
 
+    result = scrape_page(data.url)
+
+    if not result["success"]:
+        raise HTTPException(
+            status_code=500,
+            detail=result["error"]
+        )
+
     return {
         "status": "success",
-        "message": "URL accepted",
-        "url": data.url
+        "url": data.url,
+        "saved_to": result["file_path"],
+        "characters": result["characters"]
     }
