@@ -7,8 +7,8 @@ from backend.rag import (
     create_chunks,
     create_embeddings,
     build_faiss_index,
-    retrieve_chunks,
-    retrieve_hybrid
+    retrieve_hybrid,
+    generate_answer
 )
 
 app = FastAPI(
@@ -93,3 +93,13 @@ def retrieve(
         "results":
             results}
 
+@app.post("/chat")
+def chat(
+    data: QueryRequest
+):
+
+    result = generate_answer(
+        data.question
+    )
+
+    return result

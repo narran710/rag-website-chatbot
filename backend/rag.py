@@ -6,6 +6,17 @@ import faiss
 import numpy as np
 import pickle
 from rank_bm25 import BM25Okapi
+from groq import Groq
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+groq_client = Groq(
+    api_key=os.getenv(
+        "GROQ_API_KEY"
+    )
+)
 
 embedding_model = SentenceTransformer(
     "all-MiniLM-L6-v2"
@@ -479,3 +490,82 @@ def retrieve_hybrid(query, top_k=5):
     )
 
     return results[:top_k]
+
+def build_context(results):
+
+    context_parts = []
+
+    for result in results:
+
+        context_parts.append(
+            result["text"]
+        )
+
+    return "\n\n".join(
+        context_parts
+    )
+
+def generate_answer(question):
+
+    retrieved = retrieve_hybrid(
+        question,
+        top_k=5
+    )
+
+    context = build_context(
+        retrieved
+    )
+
+    prompt = f"""
+You are a RAG assistant.
+
+Answer ONLY from the provided context.
+
+Provide a complete answer using all relevant details from the context.
+
+Do not invent information.
+
+If the answer is not present in the context, reply exactly:
+
+I could not find that information.
+Context:
+
+{context}
+
+Question:
+
+{question}
+"""
+
+    response = (
+        groq_client.chat.completions.create(
+            model=
+            "llama-3.3-70b-versatile",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0
+        )
+    )
+
+    answer = (
+        response
+        .choices[0]
+        .message.content
+    )
+
+    return {
+        "answer": answer,
+        "sources": [
+            {
+                "source_file":
+                    item["source_file"],
+                "chunk_id":
+                    item["chunk_id"]
+            }
+            for item in retrieved
+        ]
+    }
