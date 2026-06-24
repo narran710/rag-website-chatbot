@@ -2,6 +2,9 @@ from pathlib import Path
 import re
 import json
 from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+import pickle
 
 embedding_model = SentenceTransformer(
     "all-MiniLM-L6-v2"
@@ -253,3 +256,74 @@ def create_embeddings():
         count += 1
     
     return count
+
+def build_faiss_index():
+
+    embeddings_dir = Path(
+        "data/embeddings"
+    )
+
+    vectors = []
+    metadata = []
+
+    for file_path in embeddings_dir.glob("*.json"):
+
+        with open(
+            file_path,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            data = json.load(f)
+
+        vectors.append(
+            data["embedding"]
+        )
+
+        metadata.append({
+            "source_file":
+                data["source_file"],
+            "chunk_id":
+                data["chunk_id"],
+            "text":
+                data["text"]
+        })
+
+    if not vectors:
+        return 0
+
+    vectors = np.array(
+        vectors,
+        dtype=np.float32
+    )
+
+    dimension = vectors.shape[1]
+
+    index = faiss.IndexFlatL2(
+        dimension
+    )
+
+    index.add(vectors)
+
+    Path(
+        "data/faiss_index"
+    ).mkdir(
+        exist_ok=True
+    )
+
+    faiss.write_index(
+        index,
+        "data/faiss_index/index.faiss"
+    )
+
+    with open(
+        "data/faiss_index/metadata.pkl",
+        "wb"
+    ) as f:
+
+        pickle.dump(
+            metadata,
+            f
+        )
+
+    return len(metadata)

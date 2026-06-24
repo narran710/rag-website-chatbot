@@ -5,7 +5,8 @@ from backend.scraper import crawl_website
 from backend.rag import (
     clean_documents,
     create_chunks,
-    create_embeddings
+    create_embeddings,
+    build_faiss_index
 )
 
 app = FastAPI(
@@ -61,10 +62,13 @@ def ingest(data: URLRequest):
 
     embedding_count = create_embeddings()
 
+    indexed_chunks =build_faiss_index()
+
     return {
         "status": "success",
         "pages_scraped": crawl_result["pages_scraped"],
         "documents_cleaned": cleaned_count,
         "chunks_created": chunk_count,
-        "embeddings_created": embedding_count
+        "embeddings_created": embedding_count,
+        "indexed_chunks": indexed_chunks
     }
