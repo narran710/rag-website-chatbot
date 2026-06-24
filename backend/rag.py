@@ -297,12 +297,11 @@ def build_faiss_index():
         dtype=np.float32
     )
 
-    dimension = vectors.shape[1]
+    faiss.normalize_L2(vectors)
 
-    index = faiss.IndexFlatL2(
+    index = faiss.IndexFlatIP(
         dimension
     )
-
     index.add(vectors)
 
     Path(
@@ -327,3 +326,55 @@ def build_faiss_index():
         )
 
     return len(metadata)
+
+def retrieve_chunks(
+        query,
+        top_k=5
+    ):
+        
+        index = faiss.read_index(
+        "data/faiss_index/index.faiss"
+    )
+
+        with open(
+            "data/faiss_index/metadata.pkl",
+            "rb"
+        ) as f:
+
+            metadata = pickle.load(f)
+
+        query_embedding = (
+            embedding_model
+            .encode(query)
+            .reshape(1, -1)
+            .astype(np.float32)
+        )
+
+        faiss.normalize_L2(query_embedding)
+        
+        distances, indices = index.search(
+            query_embedding,
+            top_k
+        )
+
+        results = []
+
+        for idx, distance in zip(
+            indices[0],
+            distances[0]
+        ):
+
+            if idx < len(metadata):
+
+                results.append({
+                    "score":
+                        float(distance),
+                    "source_file":
+                        metadata[idx]["source_file"],
+                    "chunk_id":
+                        metadata[idx]["chunk_id"],
+                    "text":
+                        metadata[idx]["text"]
+                })
+
+        return results

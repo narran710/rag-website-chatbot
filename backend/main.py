@@ -6,7 +6,8 @@ from backend.rag import (
     clean_documents,
     create_chunks,
     create_embeddings,
-    build_faiss_index
+    build_faiss_index,
+    retrieve_chunks
 )
 
 app = FastAPI(
@@ -17,6 +18,9 @@ app = FastAPI(
 
 class URLRequest(BaseModel):
     url: str
+
+class QueryRequest(BaseModel):
+    question: str
 
 
 def is_valid_url(url: str):
@@ -72,3 +76,19 @@ def ingest(data: URLRequest):
         "embeddings_created": embedding_count,
         "indexed_chunks": indexed_chunks
     }
+
+@app.post("/retrieve")
+def retrieve(
+    data: QueryRequest
+):
+
+    results = retrieve_chunks(
+        data.question
+    )
+
+    return {
+        "question":
+            data.question,
+        "results":
+            results}
+
