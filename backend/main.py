@@ -7,7 +7,8 @@ from backend.rag import (
     create_chunks,
     create_embeddings,
     build_faiss_index,
-    retrieve_chunks
+    retrieve_chunks,
+    retrieve_hybrid
 )
 
 app = FastAPI(
@@ -82,7 +83,7 @@ def retrieve(
     data: QueryRequest
 ):
 
-    results = retrieve_chunks(
+    results = retrieve_hybrid(
         data.question
     )
 

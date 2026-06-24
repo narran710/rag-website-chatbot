@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import pickle
+from rank_bm25 import BM25Okapi
 
 embedding_model = SentenceTransformer(
     "all-MiniLM-L6-v2"
@@ -351,7 +352,7 @@ def retrieve_chunks(
         )
 
         faiss.normalize_L2(query_embedding)
-        
+
         distances, indices = index.search(
             query_embedding,
             top_k
@@ -378,3 +379,103 @@ def retrieve_chunks(
                 })
 
         return results
+
+def retrieve_bm25(query, top_k=5):
+
+    with open(
+        "data/faiss_index/metadata.pkl",
+        "rb"
+    ) as f:
+        metadata = pickle.load(f)
+
+    corpus = [
+        item["text"]
+        for item in metadata
+    ]
+
+    tokenized_corpus = [
+        doc.lower().split()
+        for doc in corpus
+    ]
+
+    bm25 = BM25Okapi(
+        tokenized_corpus
+    )
+
+    tokenized_query = (
+        query.lower().split()
+    )
+
+    scores = bm25.get_scores(
+        tokenized_query
+    )
+
+    ranked = np.argsort(
+        scores
+    )[::-1][:top_k]
+
+    results = []
+
+    for idx in ranked:
+
+        results.append({
+            "score": float(scores[idx]),
+            "source_file": metadata[idx]["source_file"],
+            "chunk_id": metadata[idx]["chunk_id"],
+            "text": metadata[idx]["text"]
+        })
+
+    return results
+
+
+def retrieve_hybrid(query, top_k=5):
+
+    dense_results = retrieve_chunks(
+        query,
+        top_k
+    )
+
+    sparse_results = retrieve_bm25(
+        query,
+        top_k
+    )
+
+    combined = {}
+
+    for result in dense_results:
+
+        key = (
+            result["source_file"],
+            result["chunk_id"]
+        )
+
+        combined[key] = {
+            **result,
+            "hybrid_score": 1.0
+        }
+
+    for result in sparse_results:
+
+        key = (
+            result["source_file"],
+            result["chunk_id"]
+        )
+
+        if key not in combined:
+
+            combined[key] = {
+                **result,
+                "hybrid_score": 0.5
+            }
+
+        else:
+
+            combined[key]["hybrid_score"] += 0.5
+
+    results = sorted(
+        combined.values(),
+        key=lambda x: x["hybrid_score"],
+        reverse=True
+    )
+
+    return results[:top_k]
