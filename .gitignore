@@ -19,3 +19,6 @@ data/cleaned_pages/*.txt
 
 data/chunks/*.json
 !data/chunks/.gitkeep
+
+data/embeddings/*.json
+!data/embeddings/.gitkeep

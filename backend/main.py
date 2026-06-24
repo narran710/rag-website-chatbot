@@ -2,10 +2,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from urllib.parse import urlparse
 from backend.scraper import crawl_website
-from backend.rag import clean_documents
 from backend.rag import (
     clean_documents,
-    create_chunks
+    create_chunks,
+    create_embeddings
 )
 
 app = FastAPI(
@@ -59,12 +59,12 @@ def ingest(data: URLRequest):
 
     chunk_count = create_chunks()
 
+    embedding_count = create_embeddings()
+
     return {
         "status": "success",
-        "pages_scraped":
-            crawl_result["pages_scraped"],
-        "documents_cleaned":
-            cleaned_count,
-        "chunks_created":
-            chunk_count
+        "pages_scraped": crawl_result["pages_scraped"],
+        "documents_cleaned": cleaned_count,
+        "chunks_created": chunk_count,
+        "embeddings_created": embedding_count
     }

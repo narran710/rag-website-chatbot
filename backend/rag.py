@@ -1,6 +1,11 @@
 from pathlib import Path
 import re
 import json
+from sentence_transformers import SentenceTransformer
+
+embedding_model = SentenceTransformer(
+    "all-MiniLM-L6-v2"
+)
 
 NOISE_PATTERNS = [
     "Skip to content",
@@ -183,3 +188,68 @@ def create_chunks():
             total_chunks += 1
 
     return total_chunks
+
+def create_embeddings():
+
+    chunks_dir = Path(
+        "data/chunks"
+    )
+
+    embeddings_dir = Path(
+        "data/embeddings"
+    )
+
+    embeddings_dir.mkdir(
+        exist_ok=True
+    )
+
+    count = 0
+
+    for chunk_file in chunks_dir.glob("*.json"):
+
+        with open(
+            chunk_file,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            chunk_data = json.load(f)
+
+        text = chunk_data["text"]
+
+        embedding = (
+            embedding_model
+            .encode(text)
+            .tolist()
+        )
+
+        output_data = {
+            "source_file":
+                chunk_data["source_file"],
+            "chunk_id":
+                chunk_data["chunk_id"],
+            "text":
+                text,
+            "embedding":
+                embedding
+        }
+
+        output_file = (
+            embeddings_dir /
+            chunk_file.name
+        )
+
+        with open(
+            output_file,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            json.dump(
+                output_data,
+                f
+            )
+
+        count += 1
+    
+    return count
