@@ -1,10 +1,12 @@
-function MetricsPanel({ sources }) {
+function MetricsPanel({ latestResponse }) {
 
-    if (!sources || sources.length === 0) {
-
+    if (!latestResponse) {
         return null;
-
     }
+
+    const sources = latestResponse.sources || [];
+    const perplexity = latestResponse.perplexity;
+    const retrieval = latestResponse.retrieval;
 
     return (
 
@@ -19,36 +21,106 @@ function MetricsPanel({ sources }) {
 
             <h3>📊 Retrieval Metrics</h3>
 
-            {
+            <p>
+                <b>Retrieval:</b> {retrieval}
+            </p>
 
-                sources.map((source, index) => (
+            {sources.map((source, index) => (
 
-                    <div
-                        key={index}
-                        style={{
-                            marginBottom: "15px"
-                        }}
-                    >
+                <div
+                    key={index}
+                    style={{
+                        marginBottom: "15px"
+                    }}
+                >
 
-                        <b>{source.source_file}</b>
+                    <b>{source.source_file}</b>
 
-                        <br />
+                    <br />
 
-                        Chunk: {source.chunk_id}
+                    Chunk: {source.chunk_id}
 
-                        <br />
+                    <br />
 
-                        Cosine Similarity:
+                    Cosine Similarity:{" "}
 
-                        {" "}
+                    {
+                        source.cosine_similarity != null
+                            ? source.cosine_similarity.toFixed(4)
+                            : "N/A"
+                    }
 
-                        {source.cosine_similarity.toFixed(4)}
+                </div>
 
-                    </div>
+            ))}
 
-                ))
+            <hr />
 
-            }
+            <h3>📈 Perplexity</h3>
+
+            <p>
+
+                {
+
+                    perplexity != null && (
+
+                        <>
+
+                            {
+
+                                perplexity < 20
+
+                                    ? "🟢"
+
+                                    : perplexity < 40
+
+                                    ? "🟡"
+
+                                    : perplexity < 60
+
+                                    ? "🟠"
+
+                                    : "🔴"
+
+                            }
+
+                            {" "}
+
+                            <b>{perplexity}</b>
+
+                        </>
+
+                    )
+
+                }
+
+            </p>
+
+            <p>
+
+                {
+
+                    perplexity == null
+
+                        ? "N/A"
+
+                        : perplexity < 20
+
+                        ? "Excellent confidence"
+
+                        : perplexity < 40
+
+                        ? "Good confidence"
+
+                        : perplexity < 60
+
+                        ? "Moderate confidence"
+
+                        : "Low confidence"
+
+                }
+
+            </p>
 
         </div>
 

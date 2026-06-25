@@ -94,7 +94,6 @@ def ingest(data: URLRequest):
         "embeddings_created": embedding_count,
         "indexed_chunks": indexed_chunks
     }
-
 @app.post("/retrieve")
 def retrieve(
     data: QueryRequest

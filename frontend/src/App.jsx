@@ -6,7 +6,6 @@ import MetricsPanel from "./MetricsPanel";
 function App() {
 
     const [isReady, setIsReady] = useState(false);
-
     const [latestResponse, setLatestResponse] = useState(null);
 
     return (
@@ -33,7 +32,7 @@ function App() {
             />
 
             <MetricsPanel
-                sources={latestResponse?.sources}
+                latestResponse={latestResponse}
             />
 
         </div>

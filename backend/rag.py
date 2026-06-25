@@ -9,6 +9,12 @@ from rank_bm25 import BM25Okapi
 from groq import Groq
 from dotenv import load_dotenv
 import os
+from transformers import (
+    GPT2LMHeadModel,
+    GPT2TokenizerFast
+)
+import torch
+import math
 
 load_dotenv()
 
@@ -21,6 +27,20 @@ groq_client = Groq(
 embedding_model = SentenceTransformer(
     "all-MiniLM-L6-v2"
 )
+
+print("Loading GPT-2...")
+
+tokenizer = GPT2TokenizerFast.from_pretrained(
+    "gpt2"
+)
+
+perplexity_model = GPT2LMHeadModel.from_pretrained(
+    "gpt2"
+)
+
+perplexity_model.eval()
+
+print("GPT-2 loaded.")
 
 NOISE_PATTERNS = [
     "Skip to content",
@@ -530,6 +550,29 @@ def build_context(results):
 
     return "\n-------------------------\n".join(context)
 
+def calculate_perplexity(text):
+
+    inputs = tokenizer(
+        text,
+        return_tensors="pt"
+    )
+
+    with torch.no_grad():
+
+        outputs = perplexity_model(
+            **inputs,
+            labels=inputs["input_ids"]
+        )
+
+    loss = outputs.loss.item()
+
+    perplexity = math.exp(loss)
+
+    return round(
+        perplexity,
+        2
+    )
+
 def generate_answer(question):
 
     retrieved = retrieve_hybrid(
@@ -595,21 +638,35 @@ Answer:
         .message.content
     )
 
+    perplexity = calculate_perplexity(
+        answer
+    )
+
     return {
+
         "answer": answer,
+
+        "perplexity": perplexity,
 
         "retrieval": "Hybrid (FAISS + BM25)",
 
         "sources": [
 
             {
+
                 "source_file": item["source_file"],
+
                 "chunk_id": item["chunk_id"],
+
                 "score": item.get("score"),
-                "cosine_similarity": item.get("cosine_similarity")
+
+                "cosine_similarity":
+                    item.get("cosine_similarity")
+
             }
 
             for item in retrieved
 
         ]
+
     }
