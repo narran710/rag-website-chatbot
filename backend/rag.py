@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 import json
 from sentence_transformers import SentenceTransformer
+from sentence_transformers import CrossEncoder
 import faiss
 import numpy as np
 import pickle
@@ -25,8 +26,16 @@ groq_client = Groq(
 )
 
 embedding_model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
+    "BAAI/bge-large-en-v1.5"
 )
+
+print("Loading Cross Encoder...")
+
+reranker = CrossEncoder(
+    "cross-encoder/ms-marco-MiniLM-L-6-v2"
+)
+
+print("Cross Encoder loaded.")
 
 print("Loading GPT-2...")
 
@@ -474,66 +483,182 @@ def retrieve_hybrid(query, top_k=5):
 
     dense_results = retrieve_chunks(
         query,
-        top_k=15
+        top_k=20
     )
 
     sparse_results = retrieve_bm25(
         query,
-        top_k=15
+        top_k=20
     )
+
+    # -----------------------------
+    # Normalize BM25 scores
+    # -----------------------------
+
+    if sparse_results:
+
+        scores = [
+
+            item["score"]
+
+            for item in sparse_results
+
+        ]
+
+        min_score = min(scores)
+
+        max_score = max(scores)
+
+        for item in sparse_results:
+
+            if max_score == min_score:
+
+                item["bm25_score"] = 1.0
+
+            else:
+
+                item["bm25_score"] = (
+
+                    item["score"] - min_score
+
+                ) / (
+
+                    max_score - min_score
+
+                )
+
+    # -----------------------------
+    # Merge Dense + Sparse
+    # -----------------------------
 
     combined = {}
 
     for result in dense_results:
 
         key = (
+
             result["source_file"],
+
             result["chunk_id"]
+
         )
 
         combined[key] = {
+
             **result,
-            "hybrid_score": 1.0
+
+            "bm25_score": 0.0,
+
+            "hybrid_score":
+
+                0.7 *
+
+                result["cosine_similarity"]
+
         }
 
     for result in sparse_results:
 
         key = (
+
             result["source_file"],
+
             result["chunk_id"]
+
         )
 
         if key in combined:
 
-            combined[key]["hybrid_score"] += 0.5
+            combined[key]["bm25_score"] = result["bm25_score"]
+
+            combined[key]["hybrid_score"] += (
+
+                0.3 *
+
+                result["bm25_score"]
+
+            )
 
         else:
 
             combined[key] = {
+
                 **result,
-                "hybrid_score": 0.5
+
+                "cosine_similarity": 0.0,
+
+                "hybrid_score":
+
+                    0.3 *
+
+                    result["bm25_score"]
+
             }
 
+    # -----------------------------
+    # Sort by Hybrid Score
+    # -----------------------------
+
     results = sorted(
+
         combined.values(),
+
         key=lambda x: x["hybrid_score"],
+
         reverse=True
+
     )
 
+    # -----------------------------
+    # Diversity Filtering
+    # -----------------------------
+
     final_results = []
+
     used_files = set()
 
-    for result in results:
+    for item in results:
 
-        if result["source_file"] not in used_files:
+        if item["source_file"] not in used_files:
 
-            final_results.append(result)
-            used_files.add(result["source_file"])
+            final_results.append(item)
+
+            used_files.add(item["source_file"])
 
         if len(final_results) == top_k:
+
             break
 
     return final_results
+
+def rerank_results(query, retrieved, top_k=5):
+
+    if not retrieved:
+        return []
+
+    pairs = [
+
+        (query, item["text"])
+
+        for item in retrieved
+
+    ]
+
+    scores = reranker.predict(pairs)
+
+    for item, score in zip(retrieved, scores):
+
+        item["rerank_score"] = float(score)
+
+    retrieved.sort(
+
+        key=lambda x: x["rerank_score"],
+
+        reverse=True
+
+    )
+
+    return retrieved[:top_k]
 
 def build_context(results):
 
@@ -573,22 +698,37 @@ def calculate_perplexity(text):
         2
     )
 
+import time
+
 def generate_answer(question):
+
+    start_time = time.time()
 
     retrieved = retrieve_hybrid(
         question,
+        top_k=20
+    )
+
+    retrieved = rerank_results(
+        question,
+        retrieved,
         top_k=5
     )
 
+    print("\n========== RETRIEVED ==========\n")
+
     for i, item in enumerate(retrieved, 1):
+
         print(f"{i}. {item['source_file']} | Chunk {item['chunk_id']}")
+
         print(item["text"][:300])
+
         print("-" * 60)
 
     context = build_context(
         retrieved
     )
-    
+
     prompt = f"""
 You are a Retrieval-Augmented Generation (RAG) assistant.
 
@@ -618,28 +758,47 @@ Question:
 Answer:
 """
 
-    response = (
-        groq_client.chat.completions.create(
-            model=
-            "llama-3.3-70b-versatile",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0
-        )
+    response = groq_client.chat.completions.create(
+
+        model="llama-3.3-70b-versatile",
+
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+
+        temperature=0
+
     )
 
-    answer = (
-        response
-        .choices[0]
-        .message.content
+    answer = response.choices[0].message.content
+
+    perplexity = calculate_perplexity(answer)
+
+    response_time = round(
+        time.time() - start_time,
+        3
     )
 
-    perplexity = calculate_perplexity(
-        answer
+    average_similarity = round(
+
+        sum(
+            item["cosine_similarity"]
+            for item in retrieved
+        ) / len(retrieved),
+
+        4
+
+    )
+
+    retrieval_confidence = round(
+
+        average_similarity * 100,
+
+        1
+
     )
 
     return {
@@ -648,7 +807,17 @@ Answer:
 
         "perplexity": perplexity,
 
-        "retrieval": "Hybrid (FAISS + BM25)",
+        "response_time": response_time,
+
+        "average_similarity": average_similarity,
+
+        "retrieval_confidence": retrieval_confidence,
+
+        "embedding_model": "BAAI/bge-large-en-v1.5",
+
+        "retrieved_chunks": len(retrieved),
+
+        "retrieval": "Hybrid (FAISS + BM25 + Cross Encoder)",
 
         "sources": [
 
@@ -658,10 +827,11 @@ Answer:
 
                 "chunk_id": item["chunk_id"],
 
-                "score": item.get("score"),
+                "score": item["score"],
 
-                "cosine_similarity":
-                    item.get("cosine_similarity")
+                "cosine_similarity": item["cosine_similarity"],
+
+                "rerank_score": item.get("rerank_score")
 
             }
 

@@ -1,8 +1,10 @@
 import { useState } from "react";
-import UploadURL from "./UploadURL";
-import ChatBox from "./ChatBox";
-import MetricsPanel from "./MetricsPanel";
 
+import UploadURL from "./components/UploadURL";
+import ChatBox from "./components/ChatBox";
+import MetricsPanel from "./components/MetricsPanel";
+
+import "./styles/app.css";
 function App() {
 
     const [isReady, setIsReady] = useState(false);
@@ -10,16 +12,13 @@ function App() {
 
     return (
 
-        <div
-            style={{
-                maxWidth: "900px",
-                margin: "40px auto",
-                padding: "20px",
-                fontFamily: "Arial"
-            }}
-        >
+        <div className="app-container">
 
-            <h1>RAG Website Chatbot</h1>
+            <h1 className="app-title">
+
+                🌐 RAG Website Chatbot
+
+            </h1>
 
             <UploadURL
                 setIsReady={setIsReady}
@@ -38,7 +37,6 @@ function App() {
         </div>
 
     );
-
 }
 
 export default App;
