@@ -311,6 +311,8 @@ def build_faiss_index():
 
     faiss.normalize_L2(vectors)
 
+    dimension = vectors.shape[1]
+
     index = faiss.IndexFlatIP(
         dimension
     )
