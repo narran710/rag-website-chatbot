@@ -1,7 +1,10 @@
 import { useState } from "react";
 import api from "./api";
 
-function UploadURL({ setIsReady }) {
+function UploadURL({
+    setIsReady,
+    setLatestResponse
+}) {
 
     const [url, setUrl] = useState("");
     const [loading, setLoading] = useState(false);
@@ -10,15 +13,20 @@ function UploadURL({ setIsReady }) {
     async function ingestWebsite() {
 
         if (!url.trim()) {
+
             setMessage("Please enter a valid URL.");
             return;
+
         }
 
         setLoading(true);
         setMessage("");
 
-        // Disable chat until ingestion completes
+        // Disable chat while ingesting
         setIsReady(false);
+
+        // Clear previous metrics
+        setLatestResponse(null);
 
         try {
 
@@ -75,13 +83,19 @@ function UploadURL({ setIsReady }) {
                 disabled={loading}
 
                 onChange={(e) =>
-                    setUrl(e.target.value)
+                    setUrl(
+                        e.target.value
+                    )
                 }
 
                 onKeyDown={(e) => {
+
                     if (e.key === "Enter") {
+
                         ingestWebsite();
+
                     }
+
                 }}
 
                 style={{
@@ -106,9 +120,11 @@ function UploadURL({ setIsReady }) {
             >
 
                 {
+
                     loading
                         ? "Processing..."
                         : "Ingest"
+
                 }
 
             </button>

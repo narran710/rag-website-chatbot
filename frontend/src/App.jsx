@@ -1,10 +1,13 @@
 import { useState } from "react";
 import UploadURL from "./UploadURL";
 import ChatBox from "./ChatBox";
+import MetricsPanel from "./MetricsPanel";
 
 function App() {
 
     const [isReady, setIsReady] = useState(false);
+
+    const [latestResponse, setLatestResponse] = useState(null);
 
     return (
 
@@ -21,10 +24,16 @@ function App() {
 
             <UploadURL
                 setIsReady={setIsReady}
+                setLatestResponse={setLatestResponse}
             />
 
             <ChatBox
                 isReady={isReady}
+                setLatestResponse={setLatestResponse}
+            />
+
+            <MetricsPanel
+                sources={latestResponse?.sources}
             />
 
         </div>

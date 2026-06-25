@@ -342,56 +342,65 @@ def build_faiss_index():
     return len(metadata)
 
 def retrieve_chunks(
-        query,
-        top_k=5
-    ):
-        
-        index = faiss.read_index(
+    query,
+    top_k=5
+):
+
+    index = faiss.read_index(
         "data/faiss_index/index.faiss"
     )
 
-        with open(
-            "data/faiss_index/metadata.pkl",
-            "rb"
-        ) as f:
+    with open(
+        "data/faiss_index/metadata.pkl",
+        "rb"
+    ) as f:
 
-            metadata = pickle.load(f)
+        metadata = pickle.load(f)
 
-        query_embedding = (
-            embedding_model
-            .encode(query)
-            .reshape(1, -1)
-            .astype(np.float32)
-        )
+    query_embedding = (
+        embedding_model
+        .encode(query)
+        .reshape(1, -1)
+        .astype(np.float32)
+    )
 
-        faiss.normalize_L2(query_embedding)
+    faiss.normalize_L2(query_embedding)
 
-        distances, indices = index.search(
-            query_embedding,
-            top_k
-        )
+    distances, indices = index.search(
+        query_embedding,
+        top_k
+    )
 
-        results = []
+    results = []
 
-        for idx, distance in zip(
-            indices[0],
-            distances[0]
-        ):
+    for idx, distance in zip(
+        indices[0],
+        distances[0]
+    ):
 
-            if idx < len(metadata):
+        if idx < len(metadata):
 
-                results.append({
-                    "score":
-                        float(distance),
-                    "source_file":
-                        metadata[idx]["source_file"],
-                    "chunk_id":
-                        metadata[idx]["chunk_id"],
-                    "text":
-                        metadata[idx]["text"]
-                })
+            results.append({
 
-        return results
+                "score": float(distance),
+
+                "cosine_similarity": round(
+                    float(distance),
+                    4
+                ),
+
+                "source_file":
+                    metadata[idx]["source_file"],
+
+                "chunk_id":
+                    metadata[idx]["chunk_id"],
+
+                "text":
+                    metadata[idx]["text"]
+
+            })
+
+    return results
 
 def retrieve_bm25(query, top_k=5):
 
@@ -445,12 +454,12 @@ def retrieve_hybrid(query, top_k=5):
 
     dense_results = retrieve_chunks(
         query,
-        top_k
+        top_k=15
     )
 
     sparse_results = retrieve_bm25(
         query,
-        top_k
+        top_k=15
     )
 
     combined = {}
@@ -474,16 +483,16 @@ def retrieve_hybrid(query, top_k=5):
             result["chunk_id"]
         )
 
-        if key not in combined:
+        if key in combined:
+
+            combined[key]["hybrid_score"] += 0.5
+
+        else:
 
             combined[key] = {
                 **result,
                 "hybrid_score": 0.5
             }
-
-        else:
-
-            combined[key]["hybrid_score"] += 0.5
 
     results = sorted(
         combined.values(),
@@ -491,21 +500,35 @@ def retrieve_hybrid(query, top_k=5):
         reverse=True
     )
 
-    return results[:top_k]
-
-def build_context(results):
-
-    context_parts = []
+    final_results = []
+    used_files = set()
 
     for result in results:
 
-        context_parts.append(
-            result["text"]
+        if result["source_file"] not in used_files:
+
+            final_results.append(result)
+            used_files.add(result["source_file"])
+
+        if len(final_results) == top_k:
+            break
+
+    return final_results
+
+def build_context(results):
+
+    context = []
+
+    for result in results:
+
+        context.append(
+            f"""Source: {result['source_file']}
+
+{result['text']}
+"""
         )
 
-    return "\n\n".join(
-        context_parts
-    )
+    return "\n-------------------------\n".join(context)
 
 def generate_answer(question):
 
@@ -514,29 +537,42 @@ def generate_answer(question):
         top_k=5
     )
 
+    for i, item in enumerate(retrieved, 1):
+        print(f"{i}. {item['source_file']} | Chunk {item['chunk_id']}")
+        print(item["text"][:300])
+        print("-" * 60)
+
     context = build_context(
         retrieved
     )
-
+    
     prompt = f"""
-You are a RAG assistant.
+You are a Retrieval-Augmented Generation (RAG) assistant.
 
-Answer ONLY from the provided context.
+Use ONLY the information contained in the provided context.
 
-Provide a complete answer using all relevant details from the context.
+If multiple sources contain useful information,
+combine them into one clear answer.
 
-Do not invent information.
+Do not invent facts.
 
-If the answer is not present in the context, reply exactly:
+If the answer cannot be found in the context, reply exactly:
 
 I could not find that information.
+
+====================
+
 Context:
 
 {context}
 
+====================
+
 Question:
 
 {question}
+
+Answer:
 """
 
     response = (
@@ -561,13 +597,19 @@ Question:
 
     return {
         "answer": answer,
+
+        "retrieval": "Hybrid (FAISS + BM25)",
+
         "sources": [
+
             {
-                "source_file":
-                    item["source_file"],
-                "chunk_id":
-                    item["chunk_id"]
+                "source_file": item["source_file"],
+                "chunk_id": item["chunk_id"],
+                "score": item.get("score"),
+                "cosine_similarity": item.get("cosine_similarity")
             }
+
             for item in retrieved
+
         ]
     }

@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import api from "./api";
 
-function ChatBox({ isReady }) {
+function ChatBox({
+    isReady,
+    setLatestResponse
+}) {
 
     const [question, setQuestion] = useState("");
     const [messages, setMessages] = useState([]);
@@ -46,6 +49,9 @@ function ChatBox({ isReady }) {
                 }
             );
 
+            // Save latest response for MetricsPanel
+            setLatestResponse(response.data);
+
             setMessages(prev => [
                 ...prev,
                 {
@@ -88,6 +94,7 @@ function ChatBox({ isReady }) {
             <h2>💬 Chat</h2>
 
             {
+
                 !isReady && (
 
                     <p
@@ -100,6 +107,7 @@ function ChatBox({ isReady }) {
                     </p>
 
                 )
+
             }
 
             <div
@@ -115,6 +123,7 @@ function ChatBox({ isReady }) {
             >
 
                 {
+
                     messages.map((msg, index) => (
 
                         <div
@@ -131,9 +140,11 @@ function ChatBox({ isReady }) {
                             <strong>
 
                                 {
+
                                     msg.role === "user"
                                         ? "🧑 You"
                                         : "🤖 Assistant"
+
                                 }
 
                             </strong>
@@ -183,11 +194,9 @@ function ChatBox({ isReady }) {
 
                                                             📄 {source.source_file}
 
-                                                            {" (Chunk "}
+                                                            {" | Chunk "}
 
                                                             {source.chunk_id}
-
-                                                            {")"}
 
                                                         </li>
 
@@ -207,9 +216,11 @@ function ChatBox({ isReady }) {
                         </div>
 
                     ))
+
                 }
 
                 {
+
                     loading && (
 
                         <div
@@ -222,6 +233,7 @@ function ChatBox({ isReady }) {
                         </div>
 
                     )
+
                 }
 
                 <div ref={bottomRef}></div>
@@ -235,7 +247,9 @@ function ChatBox({ isReady }) {
                 disabled={!isReady || loading}
 
                 onChange={(e) =>
-                    setQuestion(e.target.value)
+                    setQuestion(
+                        e.target.value
+                    )
                 }
 
                 onKeyDown={(e) => {
@@ -276,9 +290,11 @@ function ChatBox({ isReady }) {
             >
 
                 {
+
                     loading
                         ? "Sending..."
                         : "Send"
+
                 }
 
             </button>

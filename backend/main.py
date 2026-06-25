@@ -66,18 +66,25 @@ def ingest(data: URLRequest):
             detail="Invalid URL"
         )
 
+    print("Step 1: Crawling...")
     crawl_result = crawl_website(
         data.url,
         max_pages=10
     )
 
+    print("Step 2: Cleaning...")
     cleaned_count = clean_documents()
 
+    print("Step 3: Chunking...")
     chunk_count = create_chunks()
 
+    print("Step 4: Creating embeddings...")
     embedding_count = create_embeddings()
 
-    indexed_chunks =build_faiss_index()
+    print("Step 5: Building FAISS index...")
+    indexed_chunks = build_faiss_index()
+
+    print("✅ Ingestion complete!")
 
     return {
         "status": "success",
