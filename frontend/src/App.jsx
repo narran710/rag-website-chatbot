@@ -1,6 +1,10 @@
+import { useState } from "react";
 import UploadURL from "./UploadURL";
+import ChatBox from "./ChatBox";
 
 function App() {
+
+    const [isReady, setIsReady] = useState(false);
 
     return (
 
@@ -13,11 +17,15 @@ function App() {
             }}
         >
 
-            <h1>
-                RAG Website Chatbot
-            </h1>
+            <h1>RAG Website Chatbot</h1>
 
-            <UploadURL />
+            <UploadURL
+                setIsReady={setIsReady}
+            />
+
+            <ChatBox
+                isReady={isReady}
+            />
 
         </div>
 
