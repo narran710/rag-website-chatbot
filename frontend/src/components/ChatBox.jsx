@@ -163,6 +163,75 @@ function ChatBox({
         setLatestResponse(null);
 
     }
+    async function downloadConversation() {
+
+        if (messages.length === 0) {
+
+            alert("No conversation to export.");
+
+            return;
+
+        }
+
+        try {
+
+            const response = await api.post(
+
+                "/export-pdf",
+
+                {
+
+                    messages: messages
+
+                },
+
+                {
+
+                    responseType: "blob"
+
+                }
+
+            );
+
+            const blob = new Blob(
+
+                [response.data],
+
+                {
+
+                    type: "application/pdf"
+
+                }
+
+            );
+
+            const url = window.URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+
+            link.href = url;
+
+            link.download = "Conversation.pdf";
+
+            document.body.appendChild(link);
+
+            link.click();
+
+            link.remove();
+
+            window.URL.revokeObjectURL(url);
+
+        }
+
+        catch (err) {
+
+            console.error(err);
+
+            alert("Failed to export PDF.");
+
+        }
+
+    }
 
     return (
 
@@ -499,6 +568,30 @@ function ChatBox({
                             : "🚀 Send"
 
                     }
+
+                </button>
+
+            </div>
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginTop: "20px",
+                    marginBottom: "10px"
+                }}
+            >
+
+                <button
+
+                    className="chat-button"
+
+                    onClick={downloadConversation}
+
+                    disabled={messages.length === 0}
+
+                >
+
+                    📄 Export Conversation
 
                 </button>
 

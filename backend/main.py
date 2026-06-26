@@ -11,7 +11,12 @@ from backend.rag import (
     generate_answer
 )
 from fastapi.middleware.cors import CORSMiddleware
+from backend.pdf_export import create_chat_pdf
+from fastapi.responses import Response
 
+class ExportPDFRequest(BaseModel):
+    messages: list
+    
 app = FastAPI(
     title="RAG Website Chatbot",
     version="1.0.0"
@@ -69,7 +74,7 @@ def ingest(data: URLRequest):
     print("Step 1: Crawling...")
     crawl_result = crawl_website(
         data.url,
-        max_pages=10
+        max_pages=25
     )
 
     print("Step 2: Cleaning...")
@@ -119,3 +124,27 @@ def chat(
     )
 
     return result
+
+@app.post("/export-pdf")
+def export_pdf(
+    data: ExportPDFRequest
+):
+
+    pdf = create_chat_pdf(
+        data.messages
+    )
+
+    return Response(
+
+        content=pdf,
+
+        media_type="application/pdf",
+
+        headers={
+
+            "Content-Disposition":
+            "attachment; filename=Conversation.pdf"
+
+        }
+
+    )
