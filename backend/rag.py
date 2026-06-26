@@ -27,7 +27,7 @@ groq_client = Groq(
 )
 
 embedding_model = SentenceTransformer(
-    "BAAI/bge-large-en-v1.5"
+    "BAAI/bge-small-en-v1.5"
 )
 
 print("Loading Cross Encoder...")
@@ -411,7 +411,7 @@ def retrieve_chunks(
         axis=0
 
     )
-    faiss.normalize_L2(query_embedding)
+    
 
     distances, indices = index.search(
         query_embedding,
