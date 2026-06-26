@@ -62,43 +62,46 @@ def health():
     }
 
 
+import traceback
+
 @app.post("/ingest")
 def ingest(data: URLRequest):
+    try:
+        if not is_valid_url(data.url):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid URL"
+            )
 
-    if not is_valid_url(data.url):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid URL"
-        )
+        print("Step 1: Crawling...")
+        crawl_result = crawl_website(data.url, max_pages=25)
 
-    print("Step 1: Crawling...")
-    crawl_result = crawl_website(
-        data.url,
-        max_pages=25
-    )
+        print("Step 2: Cleaning...")
+        cleaned_count = clean_documents()
 
-    print("Step 2: Cleaning...")
-    cleaned_count = clean_documents()
+        print("Step 3: Chunking...")
+        chunk_count = create_chunks()
 
-    print("Step 3: Chunking...")
-    chunk_count = create_chunks()
+        print("Step 4: Creating embeddings...")
+        embedding_count = create_embeddings()
 
-    print("Step 4: Creating embeddings...")
-    embedding_count = create_embeddings()
+        print("Step 5: Building FAISS index...")
+        indexed_chunks = build_faiss_index()
 
-    print("Step 5: Building FAISS index...")
-    indexed_chunks = build_faiss_index()
+        print("✅ Ingestion complete!")
 
-    print("✅ Ingestion complete!")
+        return {
+            "status": "success",
+            "pages_scraped": crawl_result["pages_scraped"],
+            "documents_cleaned": cleaned_count,
+            "chunks_created": chunk_count,
+            "embeddings_created": embedding_count,
+            "indexed_chunks": indexed_chunks
+        }
 
-    return {
-        "status": "success",
-        "pages_scraped": crawl_result["pages_scraped"],
-        "documents_cleaned": cleaned_count,
-        "chunks_created": chunk_count,
-        "embeddings_created": embedding_count,
-        "indexed_chunks": indexed_chunks
-    }
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 @app.post("/retrieve")
 def retrieve(
     data: QueryRequest
