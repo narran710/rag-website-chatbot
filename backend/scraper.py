@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 from pathlib import Path
 import hashlib
-
+import xml.etree.ElementTree as ET
 
 
 def get_page_text(url):
@@ -23,15 +23,48 @@ def get_page_text(url):
         "style",
         "nav",
         "footer",
-        "header"
+        "header",
+        "aside",
+        "noscript",
+        "svg",
+        "form",
+        "button",
+        "input",
+        "iframe"
     ]):
         tag.decompose()
 
-    main_content = (
-        soup.find("main")
-        or soup.find("article")
-        or soup.find("body")
-    )
+            
+    selectors = [
+
+        "main",
+
+        "article",
+
+        '[role="main"]',
+
+        "#content",
+
+        ".content",
+
+        ".documentation",
+
+        ".docs"
+
+    ]
+
+    main_content = None
+
+    for selector in selectors:
+
+        main_content = soup.select_one(selector)
+
+        if main_content:
+            break
+
+    if main_content is None:
+
+        main_content = soup.body
 
     text = main_content.get_text(
         separator="\n"
@@ -46,9 +79,20 @@ def get_page_text(url):
     return "\n".join(lines), soup
 
 
-def crawl_website(start_url, max_pages=10):
+def crawl_website(start_url, max_pages=25):
     visited = set()
-    queue = [start_url]
+
+    queue = get_sitemap_urls(
+
+        start_url,
+
+        limit=max_pages
+
+    )
+
+    if not queue:
+
+        queue = [start_url]
 
     content_hashes = set()
 
@@ -121,3 +165,48 @@ def crawl_website(start_url, max_pages=10):
     return {
         "pages_scraped": pages_scraped
     }
+
+def get_sitemap_urls(start_url, limit=100):
+
+    sitemap_url = urljoin(start_url, "/sitemap.xml")
+
+    try:
+
+        response = requests.get(
+
+            sitemap_url,
+
+            timeout=10,
+
+            headers={"User-Agent": "Mozilla/5.0"}
+
+        )
+
+        response.raise_for_status()
+
+        root = ET.fromstring(response.text)
+
+        namespace = {
+
+            "sm": "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+        }
+
+        urls = []
+
+        for loc in root.findall(".//sm:loc", namespace):
+
+            urls.append(loc.text.strip())
+
+            if len(urls) >= limit:
+                break
+
+        print(f"Found {len(urls)} URLs in sitemap.")
+
+        return urls
+
+    except Exception:
+
+        print("No sitemap found.")
+
+        return []

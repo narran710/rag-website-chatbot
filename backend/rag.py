@@ -3,6 +3,7 @@ import re
 import json
 from sentence_transformers import SentenceTransformer
 from sentence_transformers import CrossEncoder
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 import faiss
 import numpy as np
 import pickle
@@ -149,29 +150,32 @@ def clean_documents():
 
     return cleaned_count
 
-def chunk_text(
-    text,
-    chunk_size=500,
-    overlap=100
-):
 
-    chunks = []
+splitter = RecursiveCharacterTextSplitter(
 
-    start = 0
+    chunk_size=800,
 
-    while start < len(text):
+    chunk_overlap=150,
 
-        end = start + chunk_size
+    separators=[
 
-        chunk = text[start:end]
+        "\n\n",
 
-        chunks.append(chunk)
+        "\n",
 
-        start += (
-            chunk_size - overlap
-        )
+        ". ",
 
-    return chunks
+        " ",
+
+        ""
+
+    ]
+
+)
+
+def chunk_text(text):
+
+    return splitter.split_text(text)
 
 def create_chunks():
 
@@ -263,7 +267,11 @@ def create_embeddings():
 
         embedding = (
             embedding_model
-            .encode(text)
+            .encode(
+                text,
+                normalize_embeddings=True,
+                convert_to_numpy=True
+            )
             .tolist()
         )
 
@@ -386,13 +394,23 @@ def retrieve_chunks(
 
         metadata = pickle.load(f)
 
-    query_embedding = (
-        embedding_model
-        .encode(query)
-        .reshape(1, -1)
-        .astype(np.float32)
-    )
+    query_embedding = embedding_model.encode(
 
+        query,
+
+        normalize_embeddings=True,
+
+        convert_to_numpy=True
+
+    ).astype(np.float32)
+
+    query_embedding = np.expand_dims(
+
+        query_embedding,
+
+        axis=0
+
+    )
     faiss.normalize_L2(query_embedding)
 
     distances, indices = index.search(
@@ -667,7 +685,9 @@ def build_context(results):
     for result in results:
 
         context.append(
-            f"""Source: {result['source_file']}
+            f"""
+Source: {result['source_file']}
+Chunk: {result['chunk_id']}
 
 {result['text']}
 """
@@ -715,6 +735,10 @@ def generate_answer(question):
         top_k=5
     )
 
+    context_chunks = expand_parent_chunks(
+        retrieved
+    )
+
     print("\n========== RETRIEVED ==========\n")
 
     for i, item in enumerate(retrieved, 1):
@@ -726,22 +750,24 @@ def generate_answer(question):
         print("-" * 60)
 
     context = build_context(
-        retrieved
+        context_chunks
     )
 
     prompt = f"""
-You are a Retrieval-Augmented Generation (RAG) assistant.
+You are a Retrieval-Augmented Generation assistant.
 
-Use ONLY the information contained in the provided context.
+Answer ONLY using the provided context.
 
-If multiple sources contain useful information,
-combine them into one clear answer.
+You may summarize, combine and rephrase information from multiple context passages.
 
-Do not invent facts.
+If the answer is partially available,
+answer using the available information.
 
-If the answer cannot be found in the context, reply exactly:
+Only reply
 
 I could not find that information.
+
+if absolutely no relevant information exists.
 
 ====================
 
@@ -782,16 +808,23 @@ Answer:
         3
     )
 
+    scores = [
+
+        item["cosine_similarity"]
+
+        for item in retrieved
+
+        if "cosine_similarity" in item
+
+    ]
+
     average_similarity = round(
 
-        sum(
-            item["cosine_similarity"]
-            for item in retrieved
-        ) / len(retrieved),
+        sum(scores) / len(scores),
 
         4
 
-    )
+    ) if scores else 0
 
     retrieval_confidence = round(
 
@@ -827,16 +860,82 @@ Answer:
 
                 "chunk_id": item["chunk_id"],
 
-                "score": item["score"],
+                "score": item.get("score"),
 
-                "cosine_similarity": item["cosine_similarity"],
+                "cosine_similarity": item.get("cosine_similarity"),
 
-                "rerank_score": item.get("rerank_score")
+                "rerank_score": item.get("rerank_score"),
+
+                "hybrid_score": item.get("hybrid_score"),
+
+                "bm25_score": item.get("bm25_score")
 
             }
 
             for item in retrieved
-
         ]
-
     }
+
+def expand_parent_chunks(retrieved):
+
+    with open(
+        "data/faiss_index/metadata.pkl",
+        "rb"
+    ) as f:
+
+        metadata = pickle.load(f)
+
+    metadata_lookup = {}
+
+    for item in metadata:
+
+        metadata_lookup[
+            (
+                item["source_file"],
+                item["chunk_id"]
+            )
+        ] = item
+
+    expanded = []
+
+    seen = set()
+
+    for item in retrieved:
+
+        source = item["source_file"]
+
+        chunk = item["chunk_id"]
+
+        for offset in (-1, 0, 1):
+
+            key = (
+                source,
+                chunk + offset
+            )
+
+            if (
+                key in metadata_lookup
+                and key not in seen
+            ):
+
+                expanded.append(
+
+                    metadata_lookup[key]
+
+                )
+
+                seen.add(key)
+
+    expanded.sort(
+
+        key=lambda x: (
+
+            x["source_file"],
+
+            x["chunk_id"]
+
+        )
+
+    )
+
+    return expanded
