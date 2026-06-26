@@ -10,3 +10,4 @@ groq
 python-dotenv
 reportlab
 pydantic
+langchain-text-splitters
