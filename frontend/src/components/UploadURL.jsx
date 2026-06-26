@@ -3,24 +3,32 @@ import api from "../api";
 import "../styles/upload.css";
 
 function UploadURL({
+
     setIsReady,
     setLatestResponse
+
 }) {
 
     const [url, setUrl] = useState("");
+
     const [loading, setLoading] = useState(false);
+
     const [message, setMessage] = useState("");
 
     async function ingestWebsite() {
 
-        if (!url.trim()) {
+        const cleanUrl = url.trim();
+
+        if (!cleanUrl) {
 
             setMessage("Please enter a valid URL.");
+
             return;
 
         }
 
         setLoading(true);
+
         setMessage("");
 
         setIsReady(false);
@@ -30,31 +38,65 @@ function UploadURL({
         try {
 
             const response = await api.post(
+
                 "/ingest",
+
                 {
-                    url
+
+                    url: cleanUrl
+
                 }
+
             );
 
             setMessage(
+
                 `✅ Successfully scraped ${response.data.pages_scraped} pages. You can now start chatting.`
+
             );
 
             setIsReady(true);
 
-        } catch (error) {
+            setUrl("");
+
+        }
+
+        catch (error) {
 
             if (error.response) {
 
-                setMessage(
-                    error.response.data.detail ||
-                    "Failed to ingest website."
-                );
+                if (
 
-            } else {
+                    typeof error.response.data.detail === "string"
+
+                ) {
+
+                    setMessage(
+
+                        error.response.data.detail
+
+                    );
+
+                }
+
+                else {
+
+                    setMessage(
+
+                        "Failed to ingest website."
+
+                    );
+
+                }
+
+            }
+
+            else {
 
                 setMessage(
+
                     "Cannot connect to backend."
+
                 );
 
             }
@@ -63,7 +105,11 @@ function UploadURL({
 
         }
 
-        setLoading(false);
+        finally {
+
+            setLoading(false);
+
+        }
 
     }
 
@@ -98,9 +144,13 @@ function UploadURL({
                     disabled={loading}
 
                     onChange={(e) =>
+
                         setUrl(
+
                             e.target.value
+
                         )
+
                     }
 
                     onKeyDown={(e) => {
