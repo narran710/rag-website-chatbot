@@ -2,7 +2,11 @@ fastapi
 uvicorn
 requests
 beautifulsoup4
-python-dotenv
-sentence-transformers
 faiss-cpu
+numpy
+sentence-transformers
 rank-bm25
+groq
+python-dotenv
+reportlab
+pydantic
