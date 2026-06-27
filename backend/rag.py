@@ -198,6 +198,10 @@ def create_chunks():
         ) as f:
 
             text = f.read()
+        MAX_PAGE_CHARS = 50000
+
+        if len(text) > MAX_PAGE_CHARS:
+            text = text[:MAX_PAGE_CHARS]
 
         chunks = chunk_text(text)
 
@@ -425,10 +429,7 @@ def retrieve_chunks(
 
                 "score": float(distance),
 
-                "cosine_similarity": round(
-                    float(distance),
-                    4
-                ),
+                "cosine_similarity": float(distance),
 
                 "source_file":
                     metadata[idx]["source_file"],
@@ -441,6 +442,10 @@ def retrieve_chunks(
 
             })
 
+            print(
+                metadata[idx]["source_file"],
+                float(distance)
+            )
     return results
 
 def retrieve_bm25(query, top_k=5):

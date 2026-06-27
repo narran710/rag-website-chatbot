@@ -10,73 +10,26 @@ function MetricsPanel({ latestResponse }) {
 
     const sources = latestResponse.sources || [];
 
-    const perplexity = latestResponse.perplexity;
-
     const retrieval = latestResponse.retrieval;
-
-    function getConfidence() {
-
-        if (perplexity == null) {
-
-            return "N/A";
-
-        }
-
-        if (perplexity < 20) {
-
-            return "🟢 Excellent";
-
-        }
-
-        if (perplexity < 40) {
-
-            return "🟡 Good";
-
-        }
-
-        if (perplexity < 60) {
-
-            return "🟠 Moderate";
-
-        }
-
-        return "🔴 Low";
-
-    }
 
     return (
 
         <div className="metrics-card">
 
-            <h2>
-
-                📊 Retrieval Metrics
-
-            </h2>
+            <h2>📊 Retrieval Metrics</h2>
 
             <div className="retrieval-box">
 
-                <strong>
+                <strong>Retrieval Method</strong>
 
-                    Retrieval Method
-
-                </strong>
-
-                <p>
-
-                    {retrieval}
-
-                </p>
+                <p>{retrieval}</p>
 
             </div>
 
-            <h3>
-
-                Retrieved Chunks
-
-            </h3>
+            <h3>Retrieved Chunks</h3>
 
             {
+
                 sources.map((source, index) => (
 
                     <div
@@ -135,11 +88,7 @@ function MetricsPanel({ latestResponse }) {
                                 }}
                             >
 
-                                <span>
-
-                                    Similarity Score
-
-                                </span>
+                                <span>Cosine Similarity</span>
 
                                 <strong>
 
@@ -149,42 +98,16 @@ function MetricsPanel({ latestResponse }) {
 
                             </div>
 
+
                         </div>
 
                     </div>
 
                 ))
+
             }
 
-            <div className="perplexity-card">
-
-                <h3>
-
-                    📈 Perplexity Score
-
-                </h3>
-
-                <h1>
-
-                    {
-
-                        perplexity != null
-
-                            ? perplexity.toFixed(2)
-
-                            : "N/A"
-
-                    }
-
-                </h1>
-
-                <p>
-
-                    {getConfidence()}
-
-                </p>
-
-            </div>
+    
 
         </div>
 
