@@ -20,23 +20,13 @@ groq_client = Groq(
     )
 )
 
-embedding_model = None
+print("Loading Embedding Model...")
 
-def get_embedding_model():
+embedding_model = SentenceTransformer(
+    "BAAI/bge-small-en-v1.5"
+)
 
-    global embedding_model
-
-    if embedding_model is None:
-
-        print("Loading Embedding Model...")
-
-        embedding_model = SentenceTransformer(
-            "BAAI/bge-small-en-v1.5"
-        )
-
-        print("Embedding Model Loaded.")
-
-    return embedding_model
+print("Embedding Model Loaded.")
 
 reranker = None
 
@@ -789,8 +779,6 @@ Answer:
 
     answer = response.choices[0].message.content
 
-    perplexity = calculate_perplexity(answer)
-
     response_time = round(
         time.time() - start_time,
         3
@@ -825,8 +813,6 @@ Answer:
     return {
 
         "answer": answer,
-
-        "perplexity": perplexity,
 
         "response_time": response_time,
 
