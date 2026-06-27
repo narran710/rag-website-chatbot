@@ -93,27 +93,3 @@
     transition:width .6s ease;
 
 }
-
-.perplexity-card{
-
-    margin-top:25px;
-
-    padding:20px;
-
-    background:#f8fafc;
-
-    border-radius:12px;
-
-    text-align:center;
-
-}
-
-.perplexity-card h1{
-
-    margin:10px 0;
-
-    color:#2563eb;
-
-    font-size:42px;
-
-}

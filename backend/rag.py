@@ -11,12 +11,6 @@ from rank_bm25 import BM25Okapi
 from groq import Groq
 from dotenv import load_dotenv
 import os
-from transformers import (
-    GPT2LMHeadModel,
-    GPT2TokenizerFast
-)
-import torch
-import math
 
 load_dotenv()
 
@@ -26,31 +20,43 @@ groq_client = Groq(
     )
 )
 
-embedding_model = SentenceTransformer(
-    "BAAI/bge-small-en-v1.5"
-)
+embedding_model = None
 
-print("Loading Cross Encoder...")
+def get_embedding_model():
 
-reranker = CrossEncoder(
-    "cross-encoder/ms-marco-MiniLM-L-6-v2"
-)
+    global embedding_model
+
+    if embedding_model is None:
+
+        print("Loading Embedding Model...")
+
+        embedding_model = SentenceTransformer(
+            "BAAI/bge-small-en-v1.5"
+        )
+
+        print("Embedding Model Loaded.")
+
+    return embedding_model
+
+reranker = None
+
+def get_reranker():
+
+    global reranker
+
+    if reranker is None:
+
+        print("Loading Cross Encoder...")
+
+        reranker = CrossEncoder(
+            "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        )
+
+        print("Cross Encoder Loaded.")
+
+    return reranker
 
 print("Cross Encoder loaded.")
-
-print("Loading GPT-2...")
-
-tokenizer = GPT2TokenizerFast.from_pretrained(
-    "gpt2"
-)
-
-perplexity_model = GPT2LMHeadModel.from_pretrained(
-    "gpt2"
-)
-
-perplexity_model.eval()
-
-print("GPT-2 loaded.")
 
 NOISE_PATTERNS = [
     "Skip to content",
@@ -265,8 +271,10 @@ def create_embeddings():
 
         text = chunk_data["text"]
 
+        model = get_embedding_model()
+
         embedding = (
-            embedding_model
+            model
             .encode(
                 text,
                 normalize_embeddings=True,
@@ -305,6 +313,8 @@ def create_embeddings():
         count += 1
     
     return count
+
+
 
 def build_faiss_index():
 
@@ -661,6 +671,7 @@ def rerank_results(query, retrieved, top_k=5):
         for item in retrieved
 
     ]
+    model = get_reranker()
 
     scores = reranker.predict(pairs)
 
@@ -694,29 +705,6 @@ Chunk: {result['chunk_id']}
         )
 
     return "\n-------------------------\n".join(context)
-
-def calculate_perplexity(text):
-
-    inputs = tokenizer(
-        text,
-        return_tensors="pt"
-    )
-
-    with torch.no_grad():
-
-        outputs = perplexity_model(
-            **inputs,
-            labels=inputs["input_ids"]
-        )
-
-    loss = outputs.loss.item()
-
-    perplexity = math.exp(loss)
-
-    return round(
-        perplexity,
-        2
-    )
 
 import time
 
