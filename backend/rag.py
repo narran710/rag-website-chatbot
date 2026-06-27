@@ -261,10 +261,8 @@ def create_embeddings():
 
         text = chunk_data["text"]
 
-        model = get_embedding_model()
-
         embedding = (
-            model
+            embedding_model
             .encode(
                 text,
                 normalize_embeddings=True,
@@ -395,13 +393,9 @@ def retrieve_chunks(
         metadata = pickle.load(f)
 
     query_embedding = embedding_model.encode(
-
         query,
-
         normalize_embeddings=True,
-
         convert_to_numpy=True
-
     ).astype(np.float32)
 
     query_embedding = np.expand_dims(
